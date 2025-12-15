@@ -27,30 +27,27 @@ function MessageBubble({ message, ticketId, currentUserId, userRole, messageAtta
 
   return (
     <div
-      className={`max-w-[70%] mb-4 ${
-        isAI || isAdmin
+      className={`max-w-[70%] mb-4 ${isAI || isAdmin
           ? 'ml-auto'
           : 'mr-auto'
-      }`}
+        }`}
     >
       <div
-        className={`p-4 rounded-lg border ${
-          isAI
+        className={`p-4 rounded-lg border ${isAI
             ? 'bg-orange-500/20 border-orange-500/50 text-white'
             : isAdmin
-            ? 'bg-blue-500/20 border-blue-500/50 text-white'
-            : isSystem
-            ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400'
-            : 'bg-gray-800 border-gray-700 text-white'
-        }`}
+              ? 'bg-blue-500/20 border-blue-500/50 text-white'
+              : isSystem
+                ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400'
+                : 'bg-gray-800 border-gray-700 text-white'
+          }`}
       >
         <div className="flex items-center justify-between mb-2">
-          <span className={`text-xs font-semibold uppercase ${
-            isAI ? 'text-orange-300' : 
-            isAdmin ? 'text-blue-300' : 
-            isSystem ? 'text-yellow-300' : 
-            'text-gray-300'
-          }`}>
+          <span className={`text-xs font-semibold uppercase ${isAI ? 'text-orange-300' :
+              isAdmin ? 'text-blue-300' :
+                isSystem ? 'text-yellow-300' :
+                  'text-gray-300'
+            }`}>
             {message.sender}
           </span>
           <span className="text-xs text-gray-500">{formatTimestamp(message.created_at)}</span>
@@ -109,11 +106,11 @@ export default function CustomerTicketView() {
       console.error('Failed to load attachments:', error);
       return;
     }
-    
+
     if (ticketAttachmentsData?.attachments) {
       console.log('Loaded attachments:', ticketAttachmentsData.attachments);
       setTicketAttachments(ticketAttachmentsData.attachments);
-      
+
       // Group attachments by message_id
       const grouped = {};
       ticketAttachmentsData.attachments.forEach(att => {
@@ -154,13 +151,13 @@ export default function CustomerTicketView() {
     setSending(true);
 
     const { error } = await sendReply(ticketId, msg);
-    
+
     if (error) {
       alert(`Failed to send reply: ${error}`);
     } else {
       await loadThread();
     }
-    
+
     setSending(false);
   };
 
@@ -205,6 +202,10 @@ export default function CustomerTicketView() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <div className="text-right hidden md:block mr-2">
+              <div className="text-sm font-medium text-white">Hello {user?.email || user?.name}</div>
+              <div className="text-xs text-gray-400 uppercase tracking-wider">{user?.role?.replace('_', ' ')}</div>
+            </div>
             <EscalateButton ticketId={ticketId} onEscalate={loadThread} />
             <button
               onClick={logout}

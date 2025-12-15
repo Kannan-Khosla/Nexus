@@ -10,7 +10,7 @@ function Badge({ status }) {
     human_assigned: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50',
     closed: 'bg-muted/20 text-muted border-border',
   }[status] || 'bg-muted/20 text-muted border-border';
-  
+
   return (
     <span className={`text-xs px-3 py-1 rounded-full border font-medium ${className}`}>
       {status?.replace('_', ' ') || 'open'}
@@ -81,7 +81,7 @@ export default function CustomerDashboard() {
 
     setCreating(true);
     const { data, error } = await createTicket(context.trim(), subject.trim(), message.trim());
-    
+
     if (error) {
       alert(`Failed to create ticket: ${error}`);
     } else if (data?.ticket_id) {
@@ -106,8 +106,15 @@ export default function CustomerDashboard() {
               </svg>
             </div>
             <div>
-              <h1 className="text-2xl font-bold gradient-text">Nexus</h1>
-              <p className="text-sm text-muted">Welcome back, {user?.name}</p>
+              <div className="flex flex-col">
+                <div className="text-lg font-bold gradient-text">Nexus</div>
+                <div className="flex items-center gap-2 text-sm text-muted">
+                  <span>Hello {user?.email || user?.name}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs uppercase font-medium tracking-wide">
+                    {user?.role?.replace('_', ' ')}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
           <button
@@ -179,7 +186,7 @@ export default function CustomerDashboard() {
                 {showFilters ? 'Hide' : 'Show'}
               </button>
             </div>
-            
+
             {showFilters && (
               <div className="space-y-3">
                 <select
@@ -192,7 +199,7 @@ export default function CustomerDashboard() {
                   <option value="human_assigned">Assigned</option>
                   <option value="closed">Closed</option>
                 </select>
-                
+
                 <input
                   type="text"
                   value={contextFilter}
@@ -200,7 +207,7 @@ export default function CustomerDashboard() {
                   placeholder="Context/Brand"
                   className="w-full px-4 py-2 bg-panel border border-border rounded-lg text-text placeholder-muted focus:outline-none focus:ring-2 focus:ring-accent hover:border-accent/50 transition-all"
                 />
-                
+
                 <div className="space-y-2">
                   <label className="text-xs text-muted">Date From</label>
                   <input
@@ -210,7 +217,7 @@ export default function CustomerDashboard() {
                     className="w-full px-4 py-2 bg-panel border border-border rounded-lg text-text focus:outline-none focus:ring-2 focus:ring-accent hover:border-accent/50 transition-all"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <label className="text-xs text-muted">Date To</label>
                   <input
@@ -220,7 +227,7 @@ export default function CustomerDashboard() {
                     className="w-full px-4 py-2 bg-panel border border-border rounded-lg text-text focus:outline-none focus:ring-2 focus:ring-accent hover:border-accent/50 transition-all"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <label className="text-xs text-muted">Items per page</label>
                   <select
@@ -237,7 +244,7 @@ export default function CustomerDashboard() {
                     <option value={50}>50</option>
                   </select>
                 </div>
-                
+
                 <button
                   onClick={clearFilters}
                   className="w-full px-4 py-2 bg-panel-hover text-text-secondary rounded-lg hover:bg-panel-hover hover:text-text transition-all text-sm border border-border"
@@ -320,11 +327,10 @@ export default function CustomerDashboard() {
                       key={pageNum}
                       onClick={() => setPage(pageNum)}
                       disabled={loading}
-                className={`px-4 py-2 rounded-lg transition-all ${
-                  pageNum === pagination.page
-                    ? 'bg-accent text-white glow'
-                    : 'glass border border-border text-text hover:bg-panel-hover'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      className={`px-4 py-2 rounded-lg transition-all ${pageNum === pagination.page
+                          ? 'bg-accent text-white glow'
+                          : 'glass border border-border text-text hover:bg-panel-hover'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       {pageNum}
                     </button>

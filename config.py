@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     email_filter_promotions: bool = Field(default=True, description="Filter promotional emails and ads (in addition to spam)")
     email_log_filtered: bool = Field(default=False, description="Log filtered emails to database for review")
     email_ml_classifier_enabled: bool = Field(default=True, description="Enable ML-based spam classification (requires trained model)")
+    
+    # Frontend configuration
+    frontend_url: str = Field(default="http://localhost:3000", description="Frontend application URL")
 
     model_config = SettingsConfigDict(
         env_file=".env",

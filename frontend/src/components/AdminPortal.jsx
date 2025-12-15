@@ -10,7 +10,7 @@ import RoutingRulesManager from './admin/RoutingRulesManager';
 import TagsCategoriesManager from './admin/TagsCategoriesManager';
 
 export default function AdminPortal() {
-  const { isAuthenticated, isAdmin, isSuperAdmin, logout } = useAuth();
+  const { user, isAuthenticated, isAdmin, isSuperAdmin, logout } = useAuth();
   const location = useLocation();
 
   if (!isAuthenticated || !isAdmin) {
@@ -37,84 +37,83 @@ export default function AdminPortal() {
             <nav className="flex items-center gap-2">
               <Link
                 to="/admin"
-                className={`px-4 py-2 rounded-lg transition-all text-sm font-medium ${
-                  isActive('/admin') || isActive('/admin/')
-                    ? 'bg-accent/20 text-accent border border-accent/30'
-                    : 'text-text-secondary hover:text-text hover:bg-panel-hover border border-transparent'
-                }`}
+                className={`px-4 py-2 rounded-lg transition-all text-sm font-medium ${isActive('/admin') || isActive('/admin/')
+                  ? 'bg-accent/20 text-accent border border-accent/30'
+                  : 'text-text-secondary hover:text-text hover:bg-panel-hover border border-transparent'
+                  }`}
               >
                 Tickets
               </Link>
               <Link
                 to="/admin/email-accounts"
-                className={`px-4 py-2 rounded-lg transition-all text-sm font-medium ${
-                  isActive('/admin/email-accounts')
-                    ? 'bg-accent/20 text-accent border border-accent/30'
-                    : 'text-text-secondary hover:text-text hover:bg-panel-hover border border-transparent'
-                }`}
+                className={`px-4 py-2 rounded-lg transition-all text-sm font-medium ${isActive('/admin/email-accounts')
+                  ? 'bg-accent/20 text-accent border border-accent/30'
+                  : 'text-text-secondary hover:text-text hover:bg-panel-hover border border-transparent'
+                  }`}
               >
                 Email Accounts
               </Link>
               <Link
                 to="/admin/email-templates"
-                className={`px-4 py-2 rounded-lg transition-all text-sm font-medium ${
-                  isActive('/admin/email-templates')
-                    ? 'bg-accent/20 text-accent border border-accent/30'
-                    : 'text-text-secondary hover:text-text hover:bg-panel-hover border border-transparent'
-                }`}
+                className={`px-4 py-2 rounded-lg transition-all text-sm font-medium ${isActive('/admin/email-templates')
+                  ? 'bg-accent/20 text-accent border border-accent/30'
+                  : 'text-text-secondary hover:text-text hover:bg-panel-hover border border-transparent'
+                  }`}
               >
                 Email Templates
               </Link>
               <Link
                 to="/admin/trash"
-                className={`px-4 py-2 rounded-lg transition-all text-sm font-medium ${
-                  isActive('/admin/trash')
-                    ? 'bg-accent/20 text-accent border border-accent/30'
-                    : 'text-text-secondary hover:text-text hover:bg-panel-hover border border-transparent'
-                }`}
+                className={`px-4 py-2 rounded-lg transition-all text-sm font-medium ${isActive('/admin/trash')
+                  ? 'bg-accent/20 text-accent border border-accent/30'
+                  : 'text-text-secondary hover:text-text hover:bg-panel-hover border border-transparent'
+                  }`}
               >
                 Trash
               </Link>
               <Link
                 to="/admin/routing-rules"
-                className={`px-4 py-2 rounded-lg transition-all text-sm font-medium ${
-                  isActive('/admin/routing-rules')
-                    ? 'bg-accent/20 text-accent border border-accent/30'
-                    : 'text-text-secondary hover:text-text hover:bg-panel-hover border border-transparent'
-                }`}
+                className={`px-4 py-2 rounded-lg transition-all text-sm font-medium ${isActive('/admin/routing-rules')
+                  ? 'bg-accent/20 text-accent border border-accent/30'
+                  : 'text-text-secondary hover:text-text hover:bg-panel-hover border border-transparent'
+                  }`}
               >
                 Routing Rules
               </Link>
               <Link
                 to="/admin/tags-categories"
-                className={`px-4 py-2 rounded-lg transition-all text-sm font-medium ${
-                  isActive('/admin/tags-categories')
-                    ? 'bg-accent/20 text-accent border border-accent/30'
-                    : 'text-text-secondary hover:text-text hover:bg-panel-hover border border-transparent'
-                }`}
+                className={`px-4 py-2 rounded-lg transition-all text-sm font-medium ${isActive('/admin/tags-categories')
+                  ? 'bg-accent/20 text-accent border border-accent/30'
+                  : 'text-text-secondary hover:text-text hover:bg-panel-hover border border-transparent'
+                  }`}
               >
                 Tags & Categories
               </Link>
               {isSuperAdmin && (
                 <Link
                   to="/admin/organizations"
-                  className={`px-4 py-2 rounded-lg transition-all text-sm font-medium ${
-                    isActive('/admin/organizations')
-                      ? 'bg-accent/20 text-accent border border-accent/30'
-                      : 'text-text-secondary hover:text-text hover:bg-panel-hover border border-transparent'
-                  }`}
+                  className={`px-4 py-2 rounded-lg transition-all text-sm font-medium ${isActive('/admin/organizations')
+                    ? 'bg-accent/20 text-accent border border-accent/30'
+                    : 'text-text-secondary hover:text-text hover:bg-panel-hover border border-transparent'
+                    }`}
                 >
                   Organizations
                 </Link>
               )}
             </nav>
           </div>
-          <button
-            onClick={logout}
-            className="px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg hover:bg-red-500/20 transition-all text-sm font-medium"
-          >
-            Logout
-          </button>
+          <div className="flex items-center gap-4">
+            <div className="text-right hidden md:block">
+              <div className="text-sm font-medium text-text">Hello {user?.email || user?.name}</div>
+              <div className="text-xs text-muted uppercase tracking-wider">{user?.role?.replace('_', ' ')}</div>
+            </div>
+            <button
+              onClick={logout}
+              className="px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg hover:bg-red-500/20 transition-all text-sm font-medium"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 

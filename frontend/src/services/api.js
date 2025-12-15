@@ -41,7 +41,7 @@ async function apiRequest(url, options = {}) {
   const baseUrl = getBaseUrl().replace(/\/+$/, '');
   const fullUrl = `${baseUrl}${url}`;
   const token = getToken();
-  
+
   try {
     const response = await fetch(fullUrl, {
       ...options,
@@ -51,9 +51,9 @@ async function apiRequest(url, options = {}) {
         ...options.headers,
       },
     });
-    
+
     const data = await response.json();
-    
+
     if (!response.ok) {
       // Handle 401 Unauthorized
       if (response.status === 401) {
@@ -61,12 +61,48 @@ async function apiRequest(url, options = {}) {
       }
       throw new Error(data.detail || data.error || `HTTP ${response.status}`);
     }
-    
+
     return { data, error: null };
   } catch (error) {
     return { data: null, error: error.message || 'Request failed' };
   }
 }
+
+// Auth
+export const login = async (email, password) => {
+  const { data, error } = await apiRequest('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+  return { data, error: error || null };
+};
+
+export const register = async (email, password, name) => {
+  const { data, error } = await apiRequest('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ email, password, name }),
+  });
+  return { data, error: error || null };
+};
+
+export const forgotPassword = async (email) => {
+  const { data, error } = await apiRequest('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+  return { data, error: error || null };
+};
+
+export const resetPassword = async (token, newPassword) => {
+  const { data, error } = await apiRequest('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({
+      token,
+      new_password: newPassword
+    }),
+  });
+  return { data, error: error || null };
+};
 
 /**
  * List all tickets (admin) with search, filters, and pagination
@@ -81,7 +117,7 @@ export async function listTickets(filters = {}) {
   if (filters.date_to) params.append('date_to', filters.date_to);
   if (filters.page) params.append('page', filters.page);
   if (filters.page_size) params.append('page_size', filters.page_size);
-  
+
   const queryString = params.toString();
   const url = `/admin/tickets${queryString ? `?${queryString}` : ''}`;
   return apiRequest(url);
@@ -116,7 +152,7 @@ export async function getCustomerTickets(filters = {}) {
   if (filters.date_to) params.append('date_to', filters.date_to);
   if (filters.page) params.append('page', filters.page);
   if (filters.page_size) params.append('page_size', filters.page_size);
-  
+
   const queryString = params.toString();
   const url = `/customer/tickets${queryString ? `?${queryString}` : ''}`;
   return apiRequest(url);
@@ -174,7 +210,7 @@ export async function getAssignedTickets(filters = {}) {
   if (filters.date_to) params.append('date_to', filters.date_to);
   if (filters.page) params.append('page', filters.page);
   if (filters.page_size) params.append('page_size', filters.page_size);
-  
+
   const queryString = params.toString();
   const url = `/admin/tickets/assigned${queryString ? `?${queryString}` : ''}`;
   return apiRequest(url);
@@ -229,13 +265,13 @@ export async function uploadAttachment(ticketId, file, messageId = null) {
   const baseUrl = getBaseUrl().replace(/\/+$/, '');
   const fullUrl = `${baseUrl}/ticket/${encodeURIComponent(ticketId)}/attachments`;
   const token = getToken();
-  
+
   const formData = new FormData();
   formData.append('file', file);
   if (messageId) {
     formData.append('message_id', messageId);
   }
-  
+
   try {
     const response = await fetch(fullUrl, {
       method: 'POST',
@@ -244,16 +280,16 @@ export async function uploadAttachment(ticketId, file, messageId = null) {
       },
       body: formData,
     });
-    
+
     const data = await response.json();
-    
+
     if (!response.ok) {
       if (response.status === 401) {
         throw new Error('Authentication required. Please login.');
       }
       throw new Error(data.detail || data.error || `HTTP ${response.status}`);
     }
-    
+
     return { data, error: null };
   } catch (error) {
     return { data: null, error: error.message || 'Upload failed' };
@@ -266,7 +302,7 @@ export async function uploadAttachment(ticketId, file, messageId = null) {
 export async function listAttachments(ticketId, messageId = null) {
   const params = new URLSearchParams();
   if (messageId) params.append('message_id', messageId);
-  
+
   const queryString = params.toString();
   const url = `/ticket/${encodeURIComponent(ticketId)}/attachments${queryString ? `?${queryString}` : ''}`;
   return apiRequest(url);
@@ -279,7 +315,7 @@ export async function downloadAttachment(attachmentId) {
   const baseUrl = getBaseUrl().replace(/\/+$/, '');
   const fullUrl = `${baseUrl}/attachment/${encodeURIComponent(attachmentId)}`;
   const token = getToken();
-  
+
   try {
     const response = await fetch(fullUrl, {
       method: 'GET',
@@ -287,7 +323,7 @@ export async function downloadAttachment(attachmentId) {
         ...(token && { Authorization: `Bearer ${token}` }),
       },
     });
-    
+
     if (!response.ok) {
       if (response.status === 401) {
         throw new Error('Authentication required. Please login.');
@@ -295,7 +331,7 @@ export async function downloadAttachment(attachmentId) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.detail || errorData.error || `HTTP ${response.status}`);
     }
-    
+
     // Get filename from Content-Disposition header
     const contentDisposition = response.headers.get('Content-Disposition');
     let filename = `attachment-${attachmentId}`;
@@ -305,7 +341,7 @@ export async function downloadAttachment(attachmentId) {
         filename = filenameMatch[1];
       }
     }
-    
+
     const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -315,7 +351,7 @@ export async function downloadAttachment(attachmentId) {
     a.click();
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
-    
+
     return { data: { success: true }, error: null };
   } catch (error) {
     return { data: null, error: error.message || 'Download failed' };
@@ -433,7 +469,7 @@ export async function listEmailTemplates(templateType = null, isActive = null) {
   const params = new URLSearchParams();
   if (templateType) params.append('template_type', templateType);
   if (isActive !== null) params.append('is_active', isActive);
-  
+
   const queryString = params.toString();
   const url = `/admin/email-templates${queryString ? `?${queryString}` : ''}`;
   return apiRequest(url);
@@ -457,7 +493,7 @@ export async function getTrashTickets(page = 1, pageSize = 10) {
   const params = new URLSearchParams();
   params.append('page', page);
   params.append('page_size', pageSize);
-  
+
   const url = `/admin/tickets/trash?${params.toString()}`;
   return apiRequest(url);
 }
@@ -478,7 +514,7 @@ export async function restoreTickets(ticketIds) {
 export async function permanentlyDeleteTickets(ticketIds) {
   const params = new URLSearchParams();
   ticketIds.forEach(id => params.append('ticket_ids', id));
-  
+
   const url = `/admin/tickets/trash?${params.toString()}`;
   return apiRequest(url, {
     method: 'DELETE',

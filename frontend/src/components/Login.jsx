@@ -16,7 +16,7 @@ export default function Login() {
     setLoading(true);
 
     const { error: err } = await login(email, password);
-    
+
     if (err) {
       setError(err);
       setLoading(false);
@@ -40,7 +40,7 @@ export default function Login() {
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
       </div>
-      
+
       <div className="w-full max-w-md relative z-10">
         <div className="glass rounded-2xl shadow-2xl p-8 border border-white/10 glow-hover">
           <div className="text-center mb-8">
@@ -77,9 +77,14 @@ export default function Login() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-text-secondary mb-2">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="password" className="block text-sm font-medium text-text-secondary">
+                  Password
+                </label>
+                <Link to="/forgot-password" className="text-xs text-accent hover:text-accent-hover transition-colors">
+                  Forgot password?
+                </Link>
+              </div>
               <input
                 id="password"
                 type="password"

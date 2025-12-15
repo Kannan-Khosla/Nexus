@@ -213,6 +213,13 @@ class EmailWebhookRequest(BaseModel):
     message_id: str | None = None
     in_reply_to: str | None = None
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
 
 class EmailTemplateRequest(BaseModel):
     name: str
@@ -504,6 +511,118 @@ def login(credentials: UserLogin):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Login failed",
+        )
+
+@app.post("/auth/forgot-password")
+def forgot_password(req: ForgotPasswordRequest):
+    """Request a password reset link."""
+    try:
+        if supabase is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not configured",
+            )
+        
+        # Check if user exists
+        user_res = (
+            supabase.table("users")
+            .select("id, email, name")
+            .eq("email", req.email.lower())
+            .limit(1)
+            .execute()
+        )
+        
+        if not user_res.data:
+            # Silently fail to prevent user enumeration
+            return {"message": "If an account exists, a reset link has been sent."}
+        
+        user = user_res.data[0]
+        
+        # Generate reset token (short-lived, e.g. 1 hour)
+        reset_token = create_access_token(
+            data={"sub": user["id"], "type": "reset"},
+            expires_delta=timedelta(hours=1)
+        )
+        
+        # Generate link using configured frontend URL
+        frontend_url = settings.frontend_url.rstrip('/')
+        reset_link = f"{frontend_url}/reset-password?token={reset_token}"
+
+        # Send email
+        email_service.send_email(
+            to_emails=[user["email"]],
+            subject="Reset Your Password",
+            body_text=f"Hi {user['name']},\n\nClick the link below to reset your password:\n{reset_link}\n\nThis link expires in 1 hour.\n\nIf you didn't request this, please ignore this email.",
+            body_html=f"""
+                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2>Reset Your Password</h2>
+                    <p>Hi {user['name']},</p>
+                    <p>Click the button below to reset your password:</p>
+                    <a href="{reset_link}" style="display: inline-block; padding: 12px 24px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 6px;">Reset Password</a>
+                    <p style="margin-top: 20px; font-size: 12px; color: #666;">This link expires in 1 hour. If you didn't request this, please ignore this email.</p>
+                </div>
+            """
+        )
+        
+        return {"message": "If an account exists, a reset link has been sent."}
+        
+    except Exception as e:
+        logger.error(f"Error in forgot_password: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to process request",
+        )
+
+@app.post("/auth/reset-password")
+def reset_password(req: ResetPasswordRequest):
+    """Reset password using token."""
+    try:
+        if supabase is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database not configured",
+            )
+        
+        # Verify token
+        payload = decode_access_token(req.token)
+        if not payload or payload.get("type") != "reset":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired reset token",
+            )
+            
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid token payload",
+            )
+        
+        # Validate new password
+        if len(req.new_password) < 6:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password must be at least 6 characters",
+            )
+            
+        # Hash new password
+        password_hash = get_password_hash(req.new_password)
+        
+        # Update user
+        supabase.table("users").update({
+            "password_hash": password_hash,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }).eq("id", user_id).execute()
+        
+        return {"message": "Password successfully reset"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in reset_password: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to reset password",
         )
 
 
