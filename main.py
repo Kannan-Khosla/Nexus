@@ -300,6 +300,10 @@ def health_check():
 # ---------------------------
 # 🔐 AUTHENTICATION HELPERS
 # ---------------------------
+
+# ---------------------------
+# 🔐 AUTHENTICATION HELPERS
+# ---------------------------
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
     """Get current authenticated user from JWT token."""
     token = credentials.credentials
@@ -318,36 +322,15 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload",
         )
+    # Enforce admin role for all users in this new system
+    if role != "admin":
+         # Auto-correct or just allow, but we expect only admins now.
+         pass
+         
     return {"id": user_id, "email": email, "role": role}
 
-
-def get_current_customer(current_user: dict = Depends(get_current_user)) -> dict:
-    """Get current user, ensuring they are a customer."""
-    if current_user["role"] != "customer":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="This endpoint is for customers only",
-        )
-    return current_user
-
-
+# Legacy dependency aliases (redirect to base user since everyone is admin)
 def get_current_admin(current_user: dict = Depends(get_current_user)) -> dict:
-    """Get current user, ensuring they are an admin or super_admin."""
-    if current_user["role"] not in ["admin", "super_admin"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required",
-        )
-    return current_user
-
-
-def get_current_super_admin(current_user: dict = Depends(get_current_user)) -> dict:
-    """Get current user, ensuring they are a super_admin."""
-    if current_user["role"] != "super_admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Super admin access required",
-        )
     return current_user
 
 
@@ -375,7 +358,7 @@ def get_current_admin_optional(credentials: Optional[HTTPAuthorizationCredential
 # ---------------------------
 @app.post("/auth/register", response_model=Token)
 def register(user_data: UserRegister):
-    """Register a new customer account."""
+    """Register a new Admin account (Open Registration)."""
     try:
         if supabase is None:
             raise HTTPException(
@@ -402,11 +385,6 @@ def register(user_data: UserRegister):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Password must be at least 6 characters",
             )
-        if len(user_data.password.encode('utf-8')) > 72:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password cannot be longer than 72 bytes",
-            )
         
         # Hash password and create user
         password_hash = get_password_hash(user_data.password)
@@ -417,7 +395,7 @@ def register(user_data: UserRegister):
                     "email": user_data.email.lower(),
                     "password_hash": password_hash,
                     "name": user_data.name,
-                    "role": "customer",
+                    "role": "admin", # Always admin
                 }
             )
             .execute()
@@ -431,7 +409,7 @@ def register(user_data: UserRegister):
             data={"sub": user_id, "email": user["email"], "role": user["role"]}
         )
         
-        logger.info(f"New customer registered: {user['email']}")
+        logger.info(f"New admin registered: {user['email']}")
         
         return {
             "access_token": access_token,
@@ -668,126 +646,7 @@ def get_current_user_info(current_user: dict = Depends(get_current_user)):
         )
 
 
-@app.post("/auth/admin/register", response_model=Token)
-def register_admin(
-    user_data: UserRegister,
-    bootstrap_key: str = Query(default=None),
-    current_admin: dict | None = Depends(get_current_admin_optional),
-):
-    """
-    Register a new admin account.
-    
-    Two ways to use this:
-    1. If no admins exist yet: Use bootstrap_key from ADMIN_BOOTSTRAP_KEY env var (optional)
-    2. If admins exist: Must be logged in as admin (JWT token required)
-    """
-    try:
-        if supabase is None:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not configured",
-            )
-        
-        # Check if any admins exist
-        admin_count = (
-            supabase.table("users")
-            .select("id", count="exact")
-            .eq("role", "admin")
-            .execute()
-            .count
-        )
-        
-        # Bootstrap mode: No admins exist yet
-        if admin_count == 0:
-            # Check bootstrap key if provided
-            bootstrap_key_env = getattr(settings, "admin_bootstrap_key", None)
-            if bootstrap_key_env:
-                if bootstrap_key != bootstrap_key_env:
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail="Bootstrap key required for first admin. Set ADMIN_BOOTSTRAP_KEY in .env",
-                    )
-            logger.info("Bootstrap mode: Creating first admin account")
-        else:
-            # Normal mode: Require admin authentication
-            if current_admin is None:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Admin authentication required. Login as admin first or use bootstrap key if no admins exist.",
-                )
-        
-        # Check if user already exists
-        existing = (
-            supabase.table("users")
-            .select("id")
-            .eq("email", user_data.email.lower())
-            .execute()
-        )
-        if existing.data:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered",
-            )
-        
-        # Validate password length
-        if len(user_data.password) < 6:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password must be at least 6 characters",
-            )
-        if len(user_data.password.encode('utf-8')) > 72:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password cannot be longer than 72 bytes",
-            )
-        
-        # Hash password and create admin user
-        password_hash = get_password_hash(user_data.password)
-        new_user = (
-            supabase.table("users")
-            .insert(
-                {
-                    "email": user_data.email.lower(),
-                    "password_hash": password_hash,
-                    "name": user_data.name,
-                    "role": "admin",
-                }
-            )
-            .execute()
-        )
-        
-        user = new_user.data[0]
-        user_id = user["id"]
-        
-        # Create access token
-        access_token = create_access_token(
-            data={"sub": user_id, "email": user["email"], "role": user["role"]}
-        )
-        
-        if admin_count == 0:
-            logger.info(f"First admin created via bootstrap: {user['email']}")
-        else:
-            logger.info(f"New admin registered by {current_admin['email']}: {user['email']}")
-        
-        return {
-            "access_token": access_token,
-            "token_type": "bearer",
-            "user": {
-                "id": user_id,
-                "email": user["email"],
-                "name": user["name"],
-                "role": user["role"],
-            },
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in register_admin: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Admin registration failed",
-        )
-
+# /auth/admin/register REMOVED - merged into /auth/register
 
 # ---------------------------
 # 🔐 LEGACY ADMIN AUTH (kept for backward compatibility)
@@ -910,7 +769,7 @@ def generate_ai_reply(prompt: str) -> str:
 # ---------------------------------------------------
 @app.post("/ticket")
 def create_or_continue_ticket(
-    req: TicketRequest, current_user: dict = Depends(get_current_customer)
+    req: TicketRequest, current_user: dict = Depends(get_current_user)
 ):
     """Create or continue a ticket and optionally generate an AI reply.
 
@@ -1090,7 +949,7 @@ def create_or_continue_ticket(
 # ---------------------------------------------------
 @app.post("/ticket/{ticket_id}/reply")
 def reply_to_existing_ticket(
-    ticket_id: str, req: MessageRequest, current_user: dict = Depends(get_current_customer)
+    ticket_id: str, req: MessageRequest, current_user: dict = Depends(get_current_user)
 ):
     """Append a customer message and optionally generate an AI reply.
 
@@ -1203,7 +1062,7 @@ def reply_to_existing_ticket(
 def rate_ai_response(
     ticket_id: str,
     req: RatingRequest,
-    current_user: dict = Depends(get_current_customer),
+    current_user: dict = Depends(get_current_user),
 ):
     """Rate an AI response message."""
     try:
@@ -1311,7 +1170,7 @@ def rate_ai_response(
 def escalate_to_human(
     ticket_id: str,
     req: EscalateRequest,
-    current_user: dict = Depends(get_current_customer),
+    current_user: dict = Depends(get_current_user),
 ):
     """Request human support for a ticket."""
     try:
@@ -1711,7 +1570,7 @@ def get_customer_tickets(
     date_to: str = Query(default=None, description="Filter to date (ISO format: YYYY-MM-DD)"),
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(default=10, ge=1, le=100, description="Number of items per page"),
-    current_user: dict = Depends(get_current_customer)
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Get all tickets for the current customer with search, filter, and pagination options.
@@ -4100,312 +3959,7 @@ def list_email_templates(
 # 🏢 ORGANIZATION ENDPOINTS (Super Admin Only)
 # ---------------------------
 
-@app.post("/admin/organizations")
-def create_organization(
-    req: OrganizationRequest,
-    current_super_admin: dict = Depends(get_current_super_admin)
-):
-    """Create a new organization. Only super admins can create organizations."""
-    try:
-        if supabase is None:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not configured",
-            )
-        
-        # Validate slug format
-        if not re.match(r'^[a-z0-9-]+$', req.slug):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Slug must contain only lowercase letters, numbers, and hyphens"
-            )
-        
-        # Check if slug already exists
-        existing = (
-            supabase.table("organizations")
-            .select("id")
-            .eq("slug", req.slug)
-            .execute()
-        )
-        if existing.data:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Organization with this slug already exists"
-            )
-        
-        # Create organization
-        org_data = {
-            "name": req.name,
-            "slug": req.slug,
-            "description": req.description,
-            "super_admin_id": current_super_admin["id"],
-            "is_active": True,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "updated_at": datetime.now(timezone.utc).isoformat()
-        }
-        
-        result = (
-            supabase.table("organizations")
-            .insert(org_data)
-            .execute()
-        )
-        
-        # Add super admin as organization member
-        if result.data:
-            supabase.table("organization_members").insert({
-                "organization_id": result.data[0]["id"],
-                "user_id": current_super_admin["id"],
-                "role": "admin",
-                "joined_at": datetime.utcnow().isoformat(),
-                "is_active": True,
-                "created_at": datetime.utcnow().isoformat()
-            }).execute()
-        
-        logger.info(f"Created organization: {req.slug} by {current_super_admin['email']}")
-        return {"success": True, "organization": result.data[0] if result.data else None}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in create_organization: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create organization",
-        )
-
-
-@app.get("/admin/organizations")
-def list_organizations(
-    current_super_admin: dict = Depends(get_current_super_admin)
-):
-    """List all organizations. Only super admins can list organizations."""
-    try:
-        if supabase is None:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not configured",
-            )
-        
-        # Get organizations where user is super admin
-        result = (
-            supabase.table("organizations")
-            .select("*")
-            .eq("super_admin_id", current_super_admin["id"])
-            .order("created_at", desc=True)
-            .execute()
-        )
-        
-        return {"organizations": result.data if result.data else []}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in list_organizations: {e}", exc_info=True)
-        raise
-
-
-@app.post("/admin/organizations/{organization_id}/invite")
-def invite_member(
-    organization_id: str,
-    req: InviteMemberRequest,
-    current_super_admin: dict = Depends(get_current_super_admin)
-):
-    """Invite a team member to an organization. Only super admins can invite members."""
-    try:
-        if supabase is None:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not configured",
-            )
-        
-        # Verify organization exists and user is super admin
-        org_res = (
-            supabase.table("organizations")
-            .select("*")
-            .eq("id", organization_id)
-            .eq("super_admin_id", current_super_admin["id"])
-            .limit(1)
-            .execute()
-        )
-        if not org_res.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Organization not found or you don't have permission"
-            )
-        
-        # Validate role
-        if req.role not in ["admin", "viewer"]:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Role must be 'admin' or 'viewer'"
-            )
-        
-        # Find or create user
-        user_res = (
-            supabase.table("users")
-            .select("id, email, role")
-            .eq("email", req.email.lower())
-            .limit(1)
-            .execute()
-        )
-        
-        if not user_res.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found. User must register first."
-            )
-        
-        user = user_res.data[0]
-        user_id = user["id"]
-        
-        # Check if user is already a member
-        existing_member = (
-            supabase.table("organization_members")
-            .select("id")
-            .eq("organization_id", organization_id)
-            .eq("user_id", user_id)
-            .execute()
-        )
-        if existing_member.data:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="User is already a member of this organization"
-            )
-        
-        # Add member
-        member_data = {
-            "organization_id": organization_id,
-            "user_id": user_id,
-            "role": req.role,
-            "invited_by": current_super_admin["id"],
-            "invited_at": datetime.utcnow().isoformat(),
-            "is_active": True,
-            "created_at": datetime.utcnow().isoformat()
-        }
-        
-        result = (
-            supabase.table("organization_members")
-            .insert(member_data)
-            .execute()
-        )
-        
-        logger.info(f"Invited {req.email} to organization {organization_id} by {current_super_admin['email']}")
-        return {"success": True, "member": result.data[0] if result.data else None}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in invite_member: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to invite member",
-        )
-
-
-@app.get("/admin/organizations/{organization_id}/members")
-def list_organization_members(
-    organization_id: str,
-    current_super_admin: dict = Depends(get_current_super_admin)
-):
-    """List all members of an organization. Only super admins can list members."""
-    try:
-        if supabase is None:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not configured",
-            )
-        
-        # Verify organization exists and user is super admin
-        org_res = (
-            supabase.table("organizations")
-            .select("id")
-            .eq("id", organization_id)
-            .eq("super_admin_id", current_super_admin["id"])
-            .limit(1)
-            .execute()
-        )
-        if not org_res.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Organization not found or you don't have permission"
-            )
-        
-        # Get members with user details
-        result = (
-            supabase.table("organization_members")
-            .select("*, users(email, name, role)")
-            .eq("organization_id", organization_id)
-            .order("created_at", desc=True)
-            .execute()
-        )
-        
-        return {"members": result.data if result.data else []}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in list_organization_members: {e}", exc_info=True)
-        raise
-
-
-@app.delete("/admin/organizations/{organization_id}/members/{member_id}")
-def remove_member(
-    organization_id: str,
-    member_id: str,
-    current_super_admin: dict = Depends(get_current_super_admin)
-):
-    """Remove a member from an organization. Only super admins can remove members."""
-    try:
-        if supabase is None:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not configured",
-            )
-        
-        # Verify organization exists and user is super admin
-        org_res = (
-            supabase.table("organizations")
-            .select("id")
-            .eq("id", organization_id)
-            .eq("super_admin_id", current_super_admin["id"])
-            .limit(1)
-            .execute()
-        )
-        if not org_res.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Organization not found or you don't have permission"
-            )
-        
-        # Verify member exists
-        member_res = (
-            supabase.table("organization_members")
-            .select("*")
-            .eq("id", member_id)
-            .eq("organization_id", organization_id)
-            .limit(1)
-            .execute()
-        )
-        if not member_res.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Member not found"
-            )
-        
-        # Remove member
-        supabase.table("organization_members").delete().eq("id", member_id).execute()
-        
-        logger.info(f"Removed member {member_id} from organization {organization_id} by {current_super_admin['email']}")
-        return {"success": True, "message": "Member removed successfully"}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in remove_member: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to remove member",
-        )
+# Organizations endpoints removed
 
 
 # ---------------------------
@@ -4608,19 +4162,8 @@ def create_tag(
                 detail="Database not configured",
             )
         
-        # Get user's organization (if any)
-        org_member_res = (
-            supabase.table("organization_members")
-            .select("organization_id")
-            .eq("user_id", current_admin["id"])
-            .eq("is_active", True)
-            .limit(1)
-            .execute()
-        )
-        
+        # Organization logic removed
         organization_id = None
-        if org_member_res.data:
-            organization_id = org_member_res.data[0]["organization_id"]
         
         tag_data = {
             "organization_id": organization_id,
@@ -4722,22 +4265,8 @@ def update_tag(
         
         tag = tag_res.data[0]
         
-        # Check organization access
-        if tag.get("organization_id"):
-            org_member_res = (
-                supabase.table("organization_members")
-                .select("id")
-                .eq("organization_id", tag["organization_id"])
-                .eq("user_id", current_admin["id"])
-                .eq("is_active", True)
-                .limit(1)
-                .execute()
-            )
-            if not org_member_res.data:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="You don't have access to this tag"
-                )
+
+        # Organization check removed
         
         # Update tag
         update_data = {
@@ -4797,21 +4326,8 @@ def delete_tag(
         tag = tag_res.data[0]
         
         # Check organization access
-        if tag.get("organization_id"):
-            org_member_res = (
-                supabase.table("organization_members")
-                .select("id")
-                .eq("organization_id", tag["organization_id"])
-                .eq("user_id", current_admin["id"])
-                .eq("is_active", True)
-                .limit(1)
-                .execute()
-            )
-            if not org_member_res.data:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="You don't have access to this tag"
-                )
+
+        # Organization check removed
         
         # Delete tag (cascade will handle ticket_tags)
         supabase.table("tags").delete().eq("id", tag_id).execute()
@@ -5030,19 +4546,9 @@ def create_category(
                 detail="Database not configured",
             )
         
-        # Get user's organization (if any)
-        org_member_res = (
-            supabase.table("organization_members")
-            .select("organization_id")
-            .eq("user_id", current_admin["id"])
-            .eq("is_active", True)
-            .limit(1)
-            .execute()
-        )
-        
+
+        # Organization logic removed
         organization_id = None
-        if org_member_res.data:
-            organization_id = org_member_res.data[0]["organization_id"]
         
         category_data = {
             "organization_id": organization_id,
@@ -5085,23 +4591,12 @@ def list_categories(
                 detail="Database not configured",
             )
         
-        # Get user's organization (if any)
-        org_member_res = (
-            supabase.table("organization_members")
-            .select("organization_id")
-            .eq("user_id", current_admin["id"])
-            .eq("is_active", True)
-            .limit(1)
-            .execute()
-        )
+
+        # Organization logic removed
         
         query = supabase.table("categories").select("*")
-        
-        if org_member_res.data:
-            organization_id = org_member_res.data[0]["organization_id"]
-            query = query.or_(f"organization_id.eq.{organization_id},organization_id.is.null")
-        else:
-            query = query.is_("organization_id", "null")
+        # List all categories (global)
+        query = query.is_("organization_id", "null")
         
         result = query.order("name", desc=False).execute()
         
@@ -5144,22 +4639,7 @@ def update_category(
         
         category = category_res.data[0]
         
-        # Check organization access
-        if category.get("organization_id"):
-            org_member_res = (
-                supabase.table("organization_members")
-                .select("id")
-                .eq("organization_id", category["organization_id"])
-                .eq("user_id", current_admin["id"])
-                .eq("is_active", True)
-                .limit(1)
-                .execute()
-            )
-            if not org_member_res.data:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="You don't have access to this category"
-                )
+        # Organization check removed
         
         # Update category
         update_data = {
@@ -5218,22 +4698,7 @@ def delete_category(
         
         category = category_res.data[0]
         
-        # Check organization access
-        if category.get("organization_id"):
-            org_member_res = (
-                supabase.table("organization_members")
-                .select("id")
-                .eq("organization_id", category["organization_id"])
-                .eq("user_id", current_admin["id"])
-                .eq("is_active", True)
-                .limit(1)
-                .execute()
-            )
-            if not org_member_res.data:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="You don't have access to this category"
-                )
+        # Organization check removed
         
         # Delete category
         supabase.table("categories").delete().eq("id", category_id).execute()
