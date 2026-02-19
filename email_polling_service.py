@@ -337,6 +337,12 @@ class EmailPollingService:
             }
             
         except Exception as e:
+            # Check for Supabase 521 Web Server Down error
+            error_str = str(e)
+            if "521" in error_str and "Web server is down" in error_str:
+                logger.warning("Supabase server is down (Error 521). Skipping polling cycle.")
+                return {"success": False, "error": "Supabase server is down (521)"}
+            
             logger.error(f"Error polling all accounts: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
