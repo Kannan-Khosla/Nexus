@@ -925,19 +925,35 @@ def create_or_continue_ticket(
         # 5.3️⃣ Sanitize output for profanity/PII
         answer, flags = sanitize_output(raw_answer)
 
-        # 6️⃣ Store AI reply
+        # 5.4️⃣ Policy Engine Check
+        from agent_executor import run_agent_action
+        from policy_engine.models import ActionType
+        
+        is_allowed, reason, modified_payload = run_agent_action(
+            action_type=ActionType.AUTO_REPLY,
+            target_id=ticket_id,
+            confidence_score=0.95,
+            payload={"message": answer},
+            context={"user_role": current_user.get("role", "customer")}
+        )
+        
+        if not is_allowed:
+            logger.warning(f"AI reply denied for ticket {ticket_id}: {reason}")
+            return {"ticket_id": ticket_id, "policy_denied": True, "reason": reason}
+
+        # 6️⃣ Store AI reply (Execute)
         supabase.table("messages").insert(
             {
                 "ticket_id": ticket_id,
                 "sender": "ai",
-                "message": answer,
+                "message": modified_payload.get("message", answer),
                 "confidence": 0.95,
                 "success": True,
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }
         ).execute()
 
-        return {"ticket_id": ticket_id, "reply": answer}
+        return {"ticket_id": ticket_id, "reply": modified_payload.get("message", answer)}
 
     except Exception as e:
         logger.error(f"Error in create_or_continue_ticket: {e}", exc_info=True)
@@ -1034,19 +1050,35 @@ def reply_to_existing_ticket(
         # 5.3️⃣ Sanitize output for profanity/PII
         answer, flags = sanitize_output(raw_answer)
 
-        # 6️⃣ Store AI reply
+        # 5.4️⃣ Policy Engine Check
+        from agent_executor import run_agent_action
+        from policy_engine.models import ActionType
+        
+        is_allowed, reason, modified_payload = run_agent_action(
+            action_type=ActionType.AUTO_REPLY,
+            target_id=ticket_id,
+            confidence_score=0.95,
+            payload={"message": answer},
+            context={"user_role": current_user.get("role", "customer")}
+        )
+        
+        if not is_allowed:
+            logger.warning(f"AI reply denied for ticket {ticket_id}: {reason}")
+            return {"ticket_id": ticket_id, "policy_denied": True, "reason": reason}
+
+        # 6️⃣ Store AI reply (Execute)
         supabase.table("messages").insert(
             {
                 "ticket_id": ticket_id,
                 "sender": "ai",
-                "message": answer,
+                "message": modified_payload.get("message", answer),
                 "confidence": 0.95,
                 "success": True,
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }
         ).execute()
 
-        return {"ticket_id": ticket_id, "reply": answer}
+        return {"ticket_id": ticket_id, "reply": modified_payload.get("message", answer)}
 
     except HTTPException:
         raise
