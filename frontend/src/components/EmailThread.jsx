@@ -14,28 +14,26 @@ function formatTimestamp(timestamp) {
 
 function EmailBubble({ email }) {
   const isInbound = email.direction === 'inbound';
-  
+
   return (
     <div className={`max-w-[80%] mb-4 ${isInbound ? 'mr-auto' : 'ml-auto'}`}>
       <div
-        className={`p-4 rounded-lg border ${
-          isInbound
+        className={`p-4 rounded-lg border ${isInbound
             ? 'bg-gray-800 border-gray-700 text-white'
             : 'bg-blue-500/20 border-blue-500/50 text-white'
-        }`}
+          }`}
       >
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <span className={`text-xs font-semibold uppercase ${
-              isInbound ? 'text-gray-300' : 'text-blue-300'
-            }`}>
+            <span className={`text-xs font-semibold uppercase ${isInbound ? 'text-gray-300' : 'text-blue-300'
+              }`}>
               {isInbound ? '📥 Inbound' : '📤 Outbound'}
             </span>
             <span className="text-xs text-gray-400">{email.from_email}</span>
           </div>
           <span className="text-xs text-gray-500">{formatTimestamp(email.created_at)}</span>
         </div>
-        
+
         <div className="mb-2">
           <div className="text-sm font-semibold text-white mb-1">{email.subject}</div>
           <div className="text-xs text-gray-400">
@@ -45,22 +43,28 @@ function EmailBubble({ email }) {
             )}
           </div>
         </div>
-        
+
         {email.body_html ? (
-          <div 
-            className="text-sm whitespace-pre-wrap leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: email.body_html }}
-          />
+          <div className="mt-4 bg-white rounded overflow-hidden shadow-inner max-w-full">
+            <iframe
+              sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"
+              srcDoc={email.body_html}
+              className="w-full h-[500px] border-0"
+              title="Email body"
+            />
+          </div>
         ) : (
-          <div className="text-sm whitespace-pre-wrap leading-relaxed">{email.body_text}</div>
+          <div className="mt-4 text-sm whitespace-pre-wrap leading-relaxed bg-black/20 p-4 rounded-md border border-white/10 max-h-[500px] overflow-y-auto">
+            {email.body_text}
+          </div>
         )}
-        
+
         {email.has_attachments && (
           <div className="mt-2 text-xs text-gray-400">
             📎 This email has attachments
           </div>
         )}
-        
+
         {email.status === 'failed' && email.error_message && (
           <div className="mt-2 text-xs text-red-400 bg-red-500/20 border border-red-500/50 rounded px-2 py-1">
             Error: {email.error_message}
@@ -84,7 +88,7 @@ export default function EmailThread({ ticketId }) {
     setLoading(true);
     setError(null);
     const { data, error: loadError } = await getTicketEmailThread(ticketId);
-    
+
     if (loadError) {
       setError(loadError);
     } else if (data) {
@@ -127,7 +131,7 @@ export default function EmailThread({ ticketId }) {
           🔄 Refresh
         </button>
       </div>
-      
+
       {emails.map((email, idx) => (
         <EmailBubble key={email.id || idx} email={email} />
       ))}

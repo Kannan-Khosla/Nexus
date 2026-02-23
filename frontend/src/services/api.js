@@ -432,6 +432,15 @@ export async function getPollingStatus(accountId) {
 }
 
 /**
+ * Manually poll an email account
+ */
+export async function pollEmailAccount(accountId) {
+  return apiRequest(`/admin/email-accounts/${encodeURIComponent(accountId)}/poll-now`, {
+    method: 'POST',
+  });
+}
+
+/**
  * Send email from ticket
  */
 export async function sendEmailFromTicket(ticketId, emailData) {
