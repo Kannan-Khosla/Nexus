@@ -1,76 +1,39 @@
 # Database Migrations
 
-This directory contains SQL migration files for the database schema.
+## Migration Order (Active)
 
-## How to Run Migrations
+Run these in sequence in the Supabase SQL Editor:
 
-### Option 1: Using Supabase Dashboard (Recommended)
+| # | File | Purpose |
+|---|------|---------|
+| 000 | `000_base_schema.sql` | Core `tickets` and `messages` tables |
+| 001 | `001_add_users_and_auth.sql` | Users, ratings, escalations, auth |
+| 002 | `002_ticket_priorities_slas.sql` | Priority levels, SLA definitions, time tracking |
+| 003 | `003_attachments.sql` | File attachment support |
+| 004 | `004_email_integration.sql` | Email accounts, threads, sending |
+| 007 | `007_fix_messages_sender_constraint.sql` | Fix sender constraint on messages |
+| 008a | `008_email_templates.sql` | Email template system |
+| 008b | `008_ticket_soft_delete.sql` | Soft delete (trash) for tickets |
+| 010 | `010_ticket_routing_rules.sql` | Ticket routing rules |
+| 011 | `011_ticket_tags_and_categories.sql` | Tags and categories for tickets |
+| 012 | `012_email_polling.sql` | IMAP email polling |
+| 013 | `013_email_spam_filtering.sql` | Spam filtering columns |
+| 014 | `014_simplify_roles.sql` | Simplified role system |
+| 015 | `015_fix_missing_columns_and_view.sql` | Fix missing columns and create `ticket_summary` view |
+| 016 | `016_add_assigned_to_column.sql` | Add `assigned_to` column to tickets |
 
-1. **Open Supabase Dashboard:**
-   - Go to [https://app.supabase.com](https://app.supabase.com)
-   - Sign in and select your project
+## Archived (Dead / No Backend Support)
 
-2. **Navigate to SQL Editor:**
-   - Click on "SQL Editor" in the left sidebar
-   - Click "New query" button
+The `archived/` subfolder contains migrations that were created but have **no corresponding API endpoints** in the backend. These tables exist in the database but are not used:
 
-3. **Run the Migration:**
-   - Copy the entire contents of `001_add_users_and_auth.sql`
-   - Paste it into the SQL Editor
-   - Click "Run" button (or press `Ctrl+Enter` / `Cmd+Enter`)
+- `005_knowledge_base.sql` — Article/knowledge base system (never implemented)
+- `006_advanced_admin_features.sql` — Teams, roles, custom fields, macros, automations (never implemented)
+- `009_organizations_and_super_admin.sql` — Multi-org support (removed)
 
-4. **Verify:**
-   - Check the "Results" section for any errors
-   - Verify tables were created in "Table Editor" section
+## How to Run
 
-### Option 2: Using Supabase CLI (Advanced)
+1. Open [Supabase Dashboard](https://app.supabase.com) → SQL Editor
+2. Paste the migration SQL
+3. Click Run
 
-If you have Supabase CLI installed:
-
-```bash
-# Make sure you're authenticated
-supabase login
-
-# Link to your project
-supabase link --project-ref your-project-ref
-
-# Run the migration
-supabase db push --file migrations/001_add_users_and_auth.sql
-```
-
-### Option 3: Using psql (Command Line)
-
-If you have direct PostgreSQL access:
-
-```bash
-# Connect to your Supabase database
-psql "postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres"
-
-# Run the migration
-\i migrations/001_add_users_and_auth.sql
-```
-
-## Migration Files
-
-- **001_add_users_and_auth.sql** - Creates users, ratings, and human_escalations tables, adds user_id to tickets table, and creates necessary indexes.
-
-## Important Notes
-
-1. **Run migrations in order** - If you have multiple migration files, run them sequentially (001, 002, etc.)
-
-2. **Backup first** - Before running migrations on production, make sure to backup your database
-
-3. **Verify existing schema** - Make sure the `tickets` and `messages` tables exist before running this migration (from the original `database_schema.sql`)
-
-4. **Test environment** - Always test migrations on a development/staging environment first
-
-## Troubleshooting
-
-If you encounter errors:
-
-- **"relation already exists"** - Some tables may already exist. The migration uses `CREATE TABLE IF NOT EXISTS` to handle this safely.
-
-- **"column already exists"** - The migration uses `ADD COLUMN IF NOT EXISTS` for the `user_id` column.
-
-- **Foreign key errors** - Make sure the `tickets` and `messages` tables exist before running this migration.
-
+> ⚠️ Always run in order. Always backup first.

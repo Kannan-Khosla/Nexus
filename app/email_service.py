@@ -12,9 +12,9 @@ import re
 import email
 from email.header import decode_header
 import httpx
-from logger import setup_logger
-from supabase_config import supabase
-from config import settings
+from app.logger import setup_logger
+from app.supabase_config import supabase
+from app.config import settings
 
 logger = setup_logger(__name__)
 
@@ -510,12 +510,16 @@ class EmailService:
             else:
                 mail = imaplib.IMAP4(imap_settings["host"], imap_settings["port"])
             
+            logged_in = False
+            selected = False
             try:
                 # Login
                 mail.login(smtp_username, smtp_password)
+                logged_in = True
                 
                 # Select inbox
                 mail.select("INBOX")
+                selected = True
                 
                 # Build search criteria
                 search_criteria = "ALL"
@@ -556,8 +560,13 @@ class EmailService:
                 return fetched_emails
                 
             finally:
-                mail.close()
-                mail.logout()
+                try:
+                    if selected:
+                        mail.close()
+                    if logged_in:
+                        mail.logout()
+                except Exception:
+                    pass
                 
         except imaplib.IMAP4.error as e:
             logger.error(f"IMAP error for account {account.get('email')}: {e}", exc_info=True)
@@ -590,16 +599,25 @@ class EmailService:
             else:
                 mail = imaplib.IMAP4(imap_settings["host"], imap_settings["port"])
             
+            logged_in = False
+            selected = False
             try:
                 mail.login(smtp_username, smtp_password)
+                logged_in = True
                 mail.select("INBOX")
+                selected = True
                 return {
                     "success": True,
                     "message": f"IMAP connection successful to {imap_settings['host']}:{imap_settings['port']}"
                 }
             finally:
-                mail.close()
-                mail.logout()
+                try:
+                    if selected:
+                        mail.close()
+                    if logged_in:
+                        mail.logout()
+                except Exception:
+                    pass
                 
         except imaplib.IMAP4.error as e:
             return {"success": False, "error": f"IMAP error: {str(e)}"}

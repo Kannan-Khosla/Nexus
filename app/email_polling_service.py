@@ -1,12 +1,12 @@
 """Email polling service for automatically fetching emails and creating tickets."""
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone, timedelta
-from logger import setup_logger
-from supabase_config import supabase
-from email_service import email_service
-from routing_service import routing_service
-from spam_classifier import spam_classifier
-from config import settings
+from app.logger import setup_logger
+from app.supabase_config import supabase
+from app.email_service import email_service
+from app.routing_service import routing_service
+from app.spam_classifier import spam_classifier
+from app.config import settings
 import re
 
 logger = setup_logger(__name__)
@@ -191,15 +191,7 @@ class EmailPollingService:
             # Apply routing rules if this is a new ticket
             if not in_reply_to:
                 try:
-                    ticket_res = (
-                        self.supabase.table("tickets")
-                        .select("organization_id")
-                        .eq("id", ticket_id)
-                        .limit(1)
-                        .execute()
-                    )
-                    organization_id = ticket_res.data[0].get("organization_id") if ticket_res.data else None
-                    routing_service.apply_routing_rules(ticket_id, organization_id)
+                    routing_service.apply_routing_rules(ticket_id)
                 except Exception as e:
                     logger.warning(f"Failed to apply routing rules for ticket {ticket_id}: {e}")
             
@@ -234,14 +226,14 @@ class EmailPollingService:
                 except:
                     since_date = datetime.now(timezone.utc) - timedelta(days=7)
             else:
-                # First time polling - only fetch emails from last 7 days
-                since_date = datetime.now(timezone.utc) - timedelta(days=7)
+                # First time polling - fetch all emails (go back 1 year)
+                since_date = datetime.now(timezone.utc) - timedelta(days=365)
             
             # Fetch emails
             fetched_emails = self.email_service.fetch_emails_imap(
                 account,
                 since_date=since_date,
-                max_emails=50
+                max_emails=500
             )
             
             if not fetched_emails:

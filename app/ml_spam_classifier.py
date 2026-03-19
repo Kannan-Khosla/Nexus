@@ -8,7 +8,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
-from logger import setup_logger
+from app.logger import setup_logger
 
 logger = setup_logger(__name__)
 

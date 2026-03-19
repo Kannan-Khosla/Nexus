@@ -1,7 +1,7 @@
 """Service for automatic ticket routing based on rules."""
 from typing import Optional, Dict, Any, List
-from logger import setup_logger
-from supabase_config import supabase
+from app.logger import setup_logger
+from app.supabase_config import supabase
 from datetime import datetime, timezone
 
 logger = setup_logger(__name__)

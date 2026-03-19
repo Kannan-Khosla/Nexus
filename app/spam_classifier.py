@@ -1,14 +1,14 @@
 """Spam classification service for filtering unwanted emails."""
 from typing import Dict, Any, List, Optional
 import re
-from logger import setup_logger
-from config import settings
+from app.logger import setup_logger
+from app.config import settings
 
 logger = setup_logger(__name__)
 
 # Try to import ML classifier (optional)
 try:
-    from ml_spam_classifier import ml_spam_classifier
+    from app.ml_spam_classifier import ml_spam_classifier
     ML_AVAILABLE = True
 except ImportError:
     ML_AVAILABLE = False

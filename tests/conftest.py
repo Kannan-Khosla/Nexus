@@ -69,17 +69,13 @@ def mock_supabase_client():
 @pytest.fixture
 def app_client(mock_supabase_client, mock_openai_client, monkeypatch):
     """Create FastAPI test client with mocked dependencies."""
-    from main import app
+    from app.main import app
     
-    # Patch the OpenAI client
-    monkeypatch.setattr("main.client", mock_openai_client)
+    # Patch the OpenAI client (now lives in helpers module)
+    monkeypatch.setattr("app.helpers.client", mock_openai_client)
     
     # Patch the Supabase client
-    monkeypatch.setattr("main.supabase", mock_supabase_client)
-    
-    # Also patch in supabase_config module
-    import supabase_config
-    monkeypatch.setattr("supabase_config.supabase", mock_supabase_client)
+    monkeypatch.setattr("app.supabase_config.supabase", mock_supabase_client)
     
     return TestClient(app)
 

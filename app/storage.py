@@ -1,6 +1,6 @@
 """Supabase Storage operations for file attachments."""
-from supabase_config import supabase, supabase_storage
-from logger import setup_logger
+from app.supabase_config import supabase, supabase_storage
+from app.logger import setup_logger
 from typing import Optional
 from datetime import datetime
 import uuid

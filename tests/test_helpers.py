@@ -2,7 +2,7 @@
 import pytest
 from datetime import datetime, timedelta
 from unittest.mock import Mock, MagicMock, patch
-from main import sanitize_output, is_rate_limited, generate_ai_reply
+from app.helpers import sanitize_output, is_rate_limited, generate_ai_reply
 
 
 class TestSanitizeOutput:
@@ -73,7 +73,7 @@ class TestSanitizeOutput:
 class TestIsRateLimited:
     """Tests for is_rate_limited function."""
 
-    @patch("main.supabase")
+    @patch("app.helpers.supabase")
     def test_not_rate_limited(self, mock_supabase):
         """Test when ticket is not rate limited."""
         mock_response = Mock()
@@ -86,7 +86,7 @@ class TestIsRateLimited:
         assert limited is False
         assert meta["ai_replies_in_window"] == 1
 
-    @patch("main.supabase")
+    @patch("app.helpers.supabase")
     def test_rate_limited(self, mock_supabase):
         """Test when ticket is rate limited."""
         mock_response = Mock()
@@ -99,7 +99,7 @@ class TestIsRateLimited:
         assert limited is True
         assert meta["ai_replies_in_window"] == 5
 
-    @patch("main.supabase")
+    @patch("app.helpers.supabase")
     def test_rate_limit_error_handling(self, mock_supabase):
         """Test error handling in rate limit check."""
         mock_supabase.table.side_effect = Exception("Database error")
@@ -111,7 +111,7 @@ class TestIsRateLimited:
 class TestGenerateAIReply:
     """Tests for generate_ai_reply function."""
 
-    @patch("main.client")
+    @patch("app.helpers.client")
     def test_successful_reply(self, mock_client):
         """Test successful AI reply generation."""
         mock_response = MagicMock()
@@ -122,7 +122,7 @@ class TestGenerateAIReply:
         assert result == "Test response"
         mock_client.chat.completions.create.assert_called_once()
 
-    @patch("main.client")
+    @patch("app.helpers.client")
     @patch("time.sleep")
     def test_retry_on_failure(self, mock_sleep, mock_client):
         """Test retry logic on API failure."""
@@ -139,7 +139,7 @@ class TestGenerateAIReply:
         assert mock_client.chat.completions.create.call_count == 2
         mock_sleep.assert_called_once()
 
-    @patch("main.client")
+    @patch("app.helpers.client")
     @patch("time.sleep")
     def test_all_retries_fail(self, mock_sleep, mock_client):
         """Test when all retry attempts fail."""

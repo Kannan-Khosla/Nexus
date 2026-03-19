@@ -16,9 +16,9 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from ml_spam_classifier import MLSpamClassifier
-from email_service import email_service
-from logger import setup_logger
+from app.ml_spam_classifier import MLSpamClassifier
+from app.email_service import email_service
+from app.logger import setup_logger
 
 logger = setup_logger(__name__)
 
