@@ -1,0 +1,10 @@
+{
+  "name": "nexus-support",
+  "private": true,
+  "scripts": {
+    "heroku-postbuild": "cd frontend && npm install && npm run build"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}

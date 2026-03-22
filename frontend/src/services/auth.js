@@ -2,7 +2,7 @@
  * Authentication service for user login, registration, and token management
  */
 
-const DEFAULT_BASE_URL = 'http://localhost:8000';
+const DEFAULT_BASE_URL = '';
 
 /**
  * Get base URL from localStorage or use default

@@ -1,0 +1,9 @@
+website/
+tests/
+*.md
+.env.example
+models/
+datasets/
+scripts/
+*.pkl
+*.joblib

@@ -128,12 +128,18 @@ class EmailService:
                     )
                     msg.attach(part)
             
-            # Connect and send
-            with smtplib.SMTP(smtp_host, smtp_port) as server:
-                server.starttls()
-                server.login(smtp_username, smtp_password)
-                all_recipients = to_emails + (cc_emails or []) + (bcc_emails or [])
-                server.send_message(msg, to_addrs=all_recipients)
+            # Connect and send — port 465 requires SSL from the start,
+            # while port 587 (and others) use STARTTLS upgrade.
+            all_recipients = to_emails + (cc_emails or []) + (bcc_emails or [])
+            if smtp_port == 465:
+                with smtplib.SMTP_SSL(smtp_host, smtp_port) as server:
+                    server.login(smtp_username, smtp_password)
+                    server.send_message(msg, to_addrs=all_recipients)
+            else:
+                with smtplib.SMTP(smtp_host, smtp_port) as server:
+                    server.starttls()
+                    server.login(smtp_username, smtp_password)
+                    server.send_message(msg, to_addrs=all_recipients)
             
             logger.info(f"Email sent via SMTP to {to_emails}")
             return {"success": True, "message_id": msg["Message-ID"]}

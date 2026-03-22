@@ -3,10 +3,13 @@ AI Support API — Application Entry Point.
 
 This file creates the FastAPI app, registers middleware, and includes all routers.
 The actual endpoint logic lives in the `routers/` directory.
+In production the built React frontend is served from the same process.
 """
 
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 import asyncio
 
@@ -21,6 +24,8 @@ from app.email_polling_service import email_polling_service
 from app.routers import auth, tickets, admin, sla, attachments, email, routing, tags
 
 logger = setup_logger(__name__)
+
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
 
 # ---------------------------------------------------
@@ -88,7 +93,7 @@ app.add_middleware(
 # ---------------------------------------------------
 # Health Check
 # ---------------------------------------------------
-@app.get("/")
+@app.get("/api/health")
 def health_check():
     """Simple health check."""
     return {"message": "AI Support API (threaded system) is running"}
@@ -105,3 +110,18 @@ app.include_router(attachments.router, tags=["Attachments"])
 app.include_router(email.router, tags=["Email"])
 app.include_router(routing.router, tags=["Routing"])
 app.include_router(tags.router, tags=["Tags & Categories"])
+
+
+# ---------------------------------------------------
+# Serve React Frontend (production only)
+# ---------------------------------------------------
+if FRONTEND_DIR.is_dir():
+    logger.info(f"Serving frontend from {FRONTEND_DIR}")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        """Serve built React app; fall back to index.html for SPA routing."""
+        file_path = FRONTEND_DIR / full_path
+        if file_path.is_file():
+            return FileResponse(file_path)
+        return FileResponse(FRONTEND_DIR / "index.html")
