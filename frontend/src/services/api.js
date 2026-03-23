@@ -787,3 +787,9 @@ export async function getWorkflowAnalysis(analysisId) {
   return apiRequest(`/workflows/analyses/${analysisId}`);
 }
 
+export async function ticketAssist(ticketId) {
+  return apiRequest(`/knowledge/ticket-assist/${encodeURIComponent(ticketId)}`, {
+    method: 'POST',
+  });
+}
+

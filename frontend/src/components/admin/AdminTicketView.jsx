@@ -13,7 +13,8 @@ import {
   removeTagFromTicket,
   listTags,
   listCategories,
-  setTicketCategory
+  setTicketCategory,
+  ticketAssist
 } from '../../services/api';
 import Loading from '../Loading';
 import AttachmentList from '../AttachmentList';
@@ -104,6 +105,11 @@ export default function AdminTicketView() {
   const [availableTags, setAvailableTags] = useState([]);
   const [availableCategories, setAvailableCategories] = useState([]);
   const [showTagSelector, setShowTagSelector] = useState(false);
+  const [kbOpen, setKbOpen] = useState(false);
+  const [kbLoading, setKbLoading] = useState(false);
+  const [kbResult, setKbResult] = useState(null);
+  const [kbError, setKbError] = useState(null);
+  const [showKbSources, setShowKbSources] = useState(false);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -285,6 +291,25 @@ export default function AdminTicketView() {
     }
   };
 
+  const handleKbAssist = async () => {
+    setKbLoading(true);
+    setKbError(null);
+    setKbResult(null);
+    const { data, error } = await ticketAssist(ticketId);
+    if (error) {
+      setKbError(error);
+    } else if (data) {
+      setKbResult(data);
+    }
+    setKbLoading(false);
+  };
+
+  const handleUseResponse = () => {
+    if (kbResult?.suggested_response) {
+      setMessage(kbResult.suggested_response);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -458,6 +483,147 @@ export default function AdminTicketView() {
                 {showEmailComposer ? '✕ Cancel Email' : '📧 Send Email'}
               </button>
             </div>
+          </div>
+
+          {/* KB Assistant */}
+          <div className="mb-6">
+            <button
+              onClick={() => { setKbOpen(!kbOpen); if (!kbOpen && !kbResult && !kbLoading) handleKbAssist(); }}
+              className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-purple-600/20 to-indigo-600/20 border border-purple-500/40 rounded-lg hover:from-purple-600/30 hover:to-indigo-600/30 transition-all"
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                <span className="text-sm font-semibold text-purple-300 uppercase tracking-wide">KB Assistant</span>
+              </div>
+              <svg
+                className={`w-4 h-4 text-purple-400 transition-transform ${kbOpen ? 'rotate-180' : ''}`}
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {kbOpen && (
+              <div className="mt-3 space-y-3">
+                {!kbLoading && !kbResult && !kbError && (
+                  <button
+                    onClick={handleKbAssist}
+                    className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm"
+                  >
+                    Search Knowledge Base
+                  </button>
+                )}
+
+                {kbLoading && (
+                  <div className="p-4 bg-gray-900 border border-purple-500/30 rounded-lg text-center">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
+                      <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                      <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                    </div>
+                    <p className="text-xs text-gray-400">Searching knowledge base and generating suggestion...</p>
+                  </div>
+                )}
+
+                {kbError && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                    <p className="text-xs text-red-400">{kbError}</p>
+                    <button
+                      onClick={handleKbAssist}
+                      className="mt-2 text-xs text-red-300 underline hover:text-red-200"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                )}
+
+                {kbResult && (
+                  <>
+                    {/* Confidence indicator */}
+                    <div className="flex items-center gap-2 px-1">
+                      <span className="text-xs text-gray-400">Confidence:</span>
+                      <div className="flex-1 bg-gray-700 rounded-full h-1.5">
+                        <div
+                          className={`rounded-full h-1.5 transition-all ${
+                            kbResult.confidence >= 0.7 ? 'bg-green-400' :
+                            kbResult.confidence >= 0.4 ? 'bg-yellow-400' : 'bg-red-400'
+                          }`}
+                          style={{ width: `${(kbResult.confidence * 100).toFixed(0)}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-medium text-gray-300">
+                        {(kbResult.confidence * 100).toFixed(0)}%
+                      </span>
+                    </div>
+
+                    {/* Reasoning */}
+                    {kbResult.reasoning && (
+                      <p className="text-xs text-gray-400 italic px-1">{kbResult.reasoning}</p>
+                    )}
+
+                    {/* Suggested response */}
+                    <div className="p-3 bg-gray-900 border border-purple-500/30 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-purple-300 uppercase">Suggested Response</span>
+                      </div>
+                      <p className="text-sm text-gray-200 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed">
+                        {kbResult.suggested_response}
+                      </p>
+                      <button
+                        onClick={handleUseResponse}
+                        className="mt-3 w-full px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                      >
+                        Use This Response
+                      </button>
+                    </div>
+
+                    {/* Sources */}
+                    {kbResult.sources?.length > 0 && (
+                      <div>
+                        <button
+                          onClick={() => setShowKbSources(!showKbSources)}
+                          className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-200 transition-colors px-1"
+                        >
+                          <svg
+                            className={`w-3 h-3 transition-transform ${showKbSources ? 'rotate-90' : ''}`}
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                          {kbResult.sources.length} source(s) found
+                        </button>
+                        {showKbSources && (
+                          <div className="mt-2 space-y-2 max-h-64 overflow-y-auto">
+                            {kbResult.sources.map((src, i) => (
+                              <div key={i} className="p-2 bg-gray-900/80 border border-gray-700 rounded-lg">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs font-medium text-indigo-300 truncate flex-1">{src.document_title}</span>
+                                  <span className="text-xs text-gray-500 ml-2 shrink-0">
+                                    {(src.similarity * 100).toFixed(0)}%
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-400 line-clamp-3">{src.content}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Refresh button */}
+                    <button
+                      onClick={handleKbAssist}
+                      disabled={kbLoading}
+                      className="w-full px-3 py-1.5 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors text-xs disabled:opacity-50"
+                    >
+                      Regenerate
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="mb-6">
