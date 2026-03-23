@@ -719,3 +719,71 @@ export async function deleteCategory(categoryId) {
   });
 }
 
+// ---------------------------
+// KNOWLEDGE BASE ENDPOINTS
+// ---------------------------
+
+export async function listKnowledgeDocuments() {
+  return apiRequest('/knowledge/documents');
+}
+
+export async function deleteKnowledgeDocument(documentId) {
+  return apiRequest(`/knowledge/documents/${documentId}`, { method: 'DELETE' });
+}
+
+export async function searchKnowledge(query, topK = 5) {
+  return apiRequest('/knowledge/search', {
+    method: 'POST',
+    body: JSON.stringify({ query, top_k: topK }),
+  });
+}
+
+export async function chatWithKnowledge(question, topK = 5) {
+  return apiRequest('/knowledge/chat', {
+    method: 'POST',
+    body: JSON.stringify({ question, top_k: topK }),
+  });
+}
+
+// ---------------------------
+// COMPLIANCE ENDPOINTS
+// ---------------------------
+
+export async function listComplianceTemplates() {
+  return apiRequest('/compliance/templates');
+}
+
+export async function createComplianceTemplate(templateData) {
+  return apiRequest('/compliance/templates', {
+    method: 'POST',
+    body: JSON.stringify(templateData),
+  });
+}
+
+export async function evaluateCompliance(documentId, templateId) {
+  return apiRequest('/compliance/evaluate', {
+    method: 'POST',
+    body: JSON.stringify({ document_id: documentId, template_id: templateId }),
+  });
+}
+
+export async function listComplianceEvaluations() {
+  return apiRequest('/compliance/evaluations');
+}
+
+// ---------------------------
+// WORKFLOW ENDPOINTS
+// ---------------------------
+
+export async function analyzeTicketWorkflow(ticketId) {
+  return apiRequest(`/workflows/analyze-ticket/${ticketId}`, { method: 'POST' });
+}
+
+export async function listWorkflowAnalyses() {
+  return apiRequest('/workflows/analyses');
+}
+
+export async function getWorkflowAnalysis(analysisId) {
+  return apiRequest(`/workflows/analyses/${analysisId}`);
+}
+

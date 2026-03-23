@@ -1,6 +1,7 @@
 """Pydantic request/response models for all API endpoints."""
 
-from pydantic import BaseModel, EmailStr
+from typing import Literal, Optional
+from pydantic import BaseModel, EmailStr, Field
 
 
 class TicketRequest(BaseModel):
@@ -164,3 +165,115 @@ class TicketTagsRequest(BaseModel):
 
 class TicketCategoryRequest(BaseModel):
     category: str | None = None
+
+
+# ============================================================
+# RAG / Knowledge Base
+# ============================================================
+
+class SearchRequest(BaseModel):
+    query: str
+    top_k: int = Field(default=5, ge=1, le=20)
+    threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+
+
+class ChatRequest(BaseModel):
+    question: str
+    top_k: int = Field(default=5, ge=1, le=20)
+
+
+class SearchResultItem(BaseModel):
+    chunk_id: str
+    document_id: str
+    document_title: str | None = None
+    content: str
+    similarity: float
+
+
+class ChatResponse(BaseModel):
+    answer: str
+    sources: list[SearchResultItem]
+
+
+# ============================================================
+# Compliance / Document Evaluation
+# ============================================================
+
+class RequirementInput(BaseModel):
+    id: str
+    title: str
+    description: str
+    category: str | None = None
+
+
+class ComplianceTemplateRequest(BaseModel):
+    name: str
+    description: str | None = None
+    requirements: list[RequirementInput]
+
+
+class EvaluateRequest(BaseModel):
+    document_id: str
+    template_id: str
+
+
+class RequirementResult(BaseModel):
+    requirement_id: str
+    status: Literal["pass", "fail", "partial", "not_applicable"]
+    reasoning: str
+    confidence: float = Field(ge=0.0, le=1.0)
+    evidence: str = ""
+
+
+class EvaluationResponse(BaseModel):
+    id: str
+    document_id: str
+    template_id: str
+    results: list[RequirementResult]
+    overall_score: float
+    summary: str
+
+
+# ============================================================
+# Multi-Agent Workflows
+# ============================================================
+
+class ClassifierOutput(BaseModel):
+    category: str
+    sentiment: Literal["positive", "neutral", "negative", "frustrated"]
+    complexity: Literal["simple", "moderate", "complex"]
+    tags: list[str] = []
+
+
+class ResearcherOutput(BaseModel):
+    relevant_docs: list[dict] = []
+    suggested_resolution: str
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
+class DrafterOutput(BaseModel):
+    draft_response: str
+    tone: str
+    key_points: list[str] = []
+
+
+class ReviewerOutput(BaseModel):
+    approved: bool
+    feedback: str
+    revised_response: str
+    quality_score: float = Field(ge=0.0, le=1.0)
+
+
+class WorkflowStepResult(BaseModel):
+    agent_name: str
+    output: dict
+    duration_ms: int
+
+
+class WorkflowAnalysisResponse(BaseModel):
+    id: str
+    ticket_id: str
+    pipeline_name: str
+    status: str
+    steps: list[WorkflowStepResult]
+    final_output: Optional[dict] = None

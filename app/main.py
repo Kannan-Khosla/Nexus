@@ -22,6 +22,7 @@ from app.email_polling_service import email_polling_service
 
 # Routers
 from app.routers import auth, tickets, admin, sla, attachments, email, routing, tags
+from app.routers import knowledge, compliance, workflows
 
 logger = setup_logger(__name__)
 
@@ -110,6 +111,9 @@ app.include_router(attachments.router, tags=["Attachments"])
 app.include_router(email.router, tags=["Email"])
 app.include_router(routing.router, tags=["Routing"])
 app.include_router(tags.router, tags=["Tags & Categories"])
+app.include_router(knowledge.router, tags=["Knowledge Base"])
+app.include_router(compliance.router, tags=["Compliance"])
+app.include_router(workflows.router, tags=["Workflows"])
 
 
 # ---------------------------------------------------

@@ -8,6 +8,9 @@ import TrashView from './admin/TrashView';
 import OrganizationManager from './admin/OrganizationManager';
 import RoutingRulesManager from './admin/RoutingRulesManager';
 import TagsCategoriesManager from './admin/TagsCategoriesManager';
+import KnowledgeBase from './admin/KnowledgeBase';
+import ComplianceManager from './admin/ComplianceManager';
+import WorkflowManager from './admin/WorkflowManager';
 
 export default function AdminPortal() {
   const { user, isAuthenticated, isAdmin, isSuperAdmin, logout } = useAuth();
@@ -89,6 +92,33 @@ export default function AdminPortal() {
               >
                 Tags & Categories
               </Link>
+              <Link
+                to="/admin/knowledge"
+                className={`px-4 py-2 rounded-lg transition-all text-sm font-medium ${isActive('/admin/knowledge')
+                  ? 'bg-accent/20 text-accent border border-accent/30'
+                  : 'text-text-secondary hover:text-text hover:bg-panel-hover border border-transparent'
+                  }`}
+              >
+                Knowledge Base
+              </Link>
+              <Link
+                to="/admin/compliance"
+                className={`px-4 py-2 rounded-lg transition-all text-sm font-medium ${isActive('/admin/compliance')
+                  ? 'bg-accent/20 text-accent border border-accent/30'
+                  : 'text-text-secondary hover:text-text hover:bg-panel-hover border border-transparent'
+                  }`}
+              >
+                Compliance
+              </Link>
+              <Link
+                to="/admin/workflows"
+                className={`px-4 py-2 rounded-lg transition-all text-sm font-medium ${isActive('/admin/workflows')
+                  ? 'bg-accent/20 text-accent border border-accent/30'
+                  : 'text-text-secondary hover:text-text hover:bg-panel-hover border border-transparent'
+                  }`}
+              >
+                Workflows
+              </Link>
               {isSuperAdmin && (
                 <Link
                   to="/admin/organizations"
@@ -127,6 +157,9 @@ export default function AdminPortal() {
           <Route path="/trash" element={<TrashView />} />
           <Route path="/routing-rules" element={<RoutingRulesManager />} />
           <Route path="/tags-categories" element={<TagsCategoriesManager />} />
+          <Route path="/knowledge" element={<KnowledgeBase />} />
+          <Route path="/compliance" element={<ComplianceManager />} />
+          <Route path="/workflows" element={<WorkflowManager />} />
           {isSuperAdmin && (
             <Route path="/organizations" element={<OrganizationManager />} />
           )}

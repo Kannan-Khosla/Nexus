@@ -73,17 +73,47 @@ def sanitize_output(text: str) -> tuple[str, dict]:
 # ---------------------------------------------------
 # AI Reply Generation (OpenAI with retry/backoff)
 # ---------------------------------------------------
-def generate_ai_reply(prompt: str) -> str:
-    """Generate AI reply with exponential backoff retry logic."""
+def _get_rag_context(prompt: str) -> str:
+    """Search the knowledge base for context relevant to the user prompt."""
+    try:
+        from app.embedding_service import embed_text
+        query_vec = embed_text(prompt[:500])
+        rpc = supabase.rpc(
+            "match_chunks",
+            {"query_embedding": query_vec, "match_count": 3, "match_threshold": 0.65},
+        ).execute()
+        if rpc.data:
+            snippets = [r["content"] for r in rpc.data]
+            return (
+                "\n\nRelevant knowledge base context (use this to inform your answer):\n"
+                + "\n---\n".join(snippets)
+            )
+    except Exception as e:
+        logger.debug(f"RAG context lookup skipped: {e}")
+    return ""
+
+
+def generate_ai_reply(prompt: str, use_rag: bool = True) -> str:
+    """Generate AI reply with exponential backoff retry logic.
+
+    When *use_rag* is True (default), the knowledge base is searched first and
+    relevant excerpts are injected into the prompt for grounded answers.
+    """
     delay = settings.openai_initial_delay
     max_retries = settings.openai_max_retries
+
+    augmented_prompt = prompt
+    if use_rag:
+        rag_context = _get_rag_context(prompt)
+        if rag_context:
+            augmented_prompt = prompt + rag_context
 
     for attempt in range(max_retries + 1):
         try:
             logger.debug(f"Calling OpenAI API (attempt {attempt + 1}/{max_retries + 1})")
             completion = client.chat.completions.create(
                 model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}],
+                messages=[{"role": "user", "content": augmented_prompt}],
             )
             response = completion.choices[0].message.content
             logger.debug("OpenAI API call successful")
