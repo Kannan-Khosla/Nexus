@@ -14,7 +14,9 @@ import {
   listTags,
   listCategories,
   setTicketCategory,
-  ticketAssist
+  ticketAssist,
+  findSimilarTickets,
+  generateKbArticle
 } from '../../services/api';
 import Loading from '../Loading';
 import AttachmentList from '../AttachmentList';
@@ -110,6 +112,11 @@ export default function AdminTicketView() {
   const [kbResult, setKbResult] = useState(null);
   const [kbError, setKbError] = useState(null);
   const [showKbSources, setShowKbSources] = useState(false);
+  const [simOpen, setSimOpen] = useState(false);
+  const [simLoading, setSimLoading] = useState(false);
+  const [simTickets, setSimTickets] = useState([]);
+  const [genArticleLoading, setGenArticleLoading] = useState(false);
+  const [genArticleResult, setGenArticleResult] = useState(null);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -308,6 +315,30 @@ export default function AdminTicketView() {
     if (kbResult?.suggested_response) {
       setMessage(kbResult.suggested_response);
     }
+  };
+
+  const handleFindSimilar = async () => {
+    setSimLoading(true);
+    setSimTickets([]);
+    const { data, error } = await findSimilarTickets(ticketId);
+    if (error) {
+      alert(`Failed to find similar tickets: ${error}`);
+    } else if (data) {
+      setSimTickets(data.similar_tickets || []);
+    }
+    setSimLoading(false);
+  };
+
+  const handleGenerateArticle = async () => {
+    setGenArticleLoading(true);
+    setGenArticleResult(null);
+    const { data, error } = await generateKbArticle(ticketId, true);
+    if (error) {
+      alert(`Failed to generate article: ${error}`);
+    } else if (data) {
+      setGenArticleResult(data);
+    }
+    setGenArticleLoading(false);
   };
 
   if (loading) {
@@ -719,6 +750,133 @@ export default function AdminTicketView() {
               ))}
             </select>
           </div>
+
+          {/* Similar Tickets */}
+          <div className="mb-6">
+            <button
+              onClick={() => { setSimOpen(!simOpen); if (!simOpen && simTickets.length === 0 && !simLoading) handleFindSimilar(); }}
+              className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-cyan-600/20 to-teal-600/20 border border-cyan-500/40 rounded-lg hover:from-cyan-600/30 hover:to-teal-600/30 transition-all"
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                <span className="text-sm font-semibold text-cyan-300 uppercase tracking-wide">Similar Tickets</span>
+              </div>
+              <svg
+                className={`w-4 h-4 text-cyan-400 transition-transform ${simOpen ? 'rotate-180' : ''}`}
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {simOpen && (
+              <div className="mt-3 space-y-2">
+                {simLoading && (
+                  <div className="p-4 bg-gray-900 border border-cyan-500/30 rounded-lg text-center">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" />
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                    </div>
+                    <p className="text-xs text-gray-400">Finding similar tickets...</p>
+                  </div>
+                )}
+
+                {!simLoading && simTickets.length === 0 && (
+                  <div className="p-3 bg-gray-900 border border-gray-700 rounded-lg text-center">
+                    <p className="text-xs text-gray-500">No similar tickets found</p>
+                    <button
+                      onClick={handleFindSimilar}
+                      className="mt-2 text-xs text-cyan-400 hover:underline"
+                    >
+                      Search again
+                    </button>
+                  </div>
+                )}
+
+                {simTickets.map((st) => (
+                  <button
+                    key={st.ticket_id}
+                    onClick={() => navigate(`/admin/ticket/${st.ticket_id}`)}
+                    className="w-full text-left p-3 bg-gray-900 border border-gray-700 rounded-lg hover:border-cyan-500/40 transition-all"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-cyan-300 truncate flex-1">{st.subject}</span>
+                      <span className="text-xs text-gray-500 ml-2 shrink-0">{(st.similarity * 100).toFixed(0)}%</span>
+                    </div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${
+                        st.status === 'closed' ? 'bg-green-500/15 text-green-400' : 'bg-yellow-500/15 text-yellow-400'
+                      }`}>
+                        {st.status}
+                      </span>
+                      <span className="text-xs text-gray-500">{st.priority}</span>
+                    </div>
+                    {st.resolution_preview && (
+                      <p className="text-xs text-gray-400 line-clamp-2 mt-1">{st.resolution_preview}</p>
+                    )}
+                  </button>
+                ))}
+
+                {simTickets.length > 0 && (
+                  <button
+                    onClick={handleFindSimilar}
+                    disabled={simLoading}
+                    className="w-full px-3 py-1.5 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors text-xs disabled:opacity-50"
+                  >
+                    Refresh
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Generate KB Article */}
+          {ticket.status === 'closed' && (
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wide">Knowledge Base</h3>
+              {!genArticleResult ? (
+                <button
+                  onClick={handleGenerateArticle}
+                  disabled={genArticleLoading}
+                  className="w-full px-4 py-2 bg-emerald-600/20 text-emerald-400 border border-emerald-500/40 rounded-lg hover:bg-emerald-600/30 transition-all text-sm font-medium disabled:opacity-50"
+                >
+                  {genArticleLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="w-3 h-3 border border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                      Generating Article...
+                    </span>
+                  ) : (
+                    'Generate KB Article'
+                  )}
+                </button>
+              ) : (
+                <div className="p-3 bg-gray-900 border border-emerald-500/30 rounded-lg space-y-2">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-xs font-medium text-emerald-400">Article saved to KB</span>
+                  </div>
+                  <h4 className="text-sm font-medium text-white">{genArticleResult.title}</h4>
+                  <p className="text-xs text-gray-400 max-h-24 overflow-y-auto whitespace-pre-wrap">
+                    {genArticleResult.content?.slice(0, 300)}...
+                  </p>
+                  {genArticleResult.tags?.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {genArticleResult.tags.map((tag, i) => (
+                        <span key={i} className="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </aside>
       </div>
 

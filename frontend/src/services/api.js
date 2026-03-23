@@ -793,3 +793,19 @@ export async function ticketAssist(ticketId) {
   });
 }
 
+export async function generateKbArticle(ticketId, autoSave = false) {
+  return apiRequest(`/knowledge/generate-article/${encodeURIComponent(ticketId)}?auto_save=${autoSave}`, {
+    method: 'POST',
+  });
+}
+
+export async function findSimilarTickets(ticketId) {
+  return apiRequest(`/knowledge/similar-tickets/${encodeURIComponent(ticketId)}`, {
+    method: 'POST',
+  });
+}
+
+export async function getKbAnalytics() {
+  return apiRequest('/knowledge/analytics');
+}
+

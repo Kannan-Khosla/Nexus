@@ -40,6 +40,10 @@ export default function KnowledgeBase() {
   const [chatLoading, setChatLoading] = useState(false);
   const chatEndRef = useRef(null);
 
+  // Analytics state
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -139,12 +143,24 @@ export default function KnowledgeBase() {
     setChatLoading(false);
   };
 
+  const loadAnalytics = async () => {
+    setAnalyticsLoading(true);
+    try {
+      const data = await apiRequest('/knowledge/analytics');
+      setAnalytics(data);
+    } catch (e) {
+      alert(`Failed to load analytics: ${e.message}`);
+    }
+    setAnalyticsLoading(false);
+  };
+
   if (loading) return <Loading />;
 
   const tabs = [
     { id: 'documents', label: 'Documents' },
     { id: 'search', label: 'Search' },
     { id: 'chat', label: 'AI Chat' },
+    { id: 'analytics', label: 'Analytics' },
   ];
 
   return (
@@ -324,6 +340,141 @@ export default function KnowledgeBase() {
               Send
             </button>
           </form>
+        </div>
+      )}
+
+      {/* Analytics Tab */}
+      {tab === 'analytics' && (
+        <div className="space-y-6">
+          {!analytics && !analyticsLoading && (
+            <button
+              onClick={loadAnalytics}
+              className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/80 transition-all text-sm font-medium"
+            >
+              Load Analytics
+            </button>
+          )}
+
+          {analyticsLoading && (
+            <div className="glass rounded-xl p-8 text-center">
+              <div className="animate-spin w-8 h-8 border-2 border-accent border-t-transparent rounded-full mx-auto mb-3" />
+              <p className="text-muted text-sm">Loading analytics...</p>
+            </div>
+          )}
+
+          {analytics && (
+            <>
+              {/* Summary Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="glass rounded-xl p-4 text-center">
+                  <div className="text-3xl font-bold text-text">{analytics.total_documents}</div>
+                  <div className="text-xs text-muted mt-1">Documents</div>
+                </div>
+                <div className="glass rounded-xl p-4 text-center">
+                  <div className="text-3xl font-bold text-text">{analytics.total_chunks}</div>
+                  <div className="text-xs text-muted mt-1">Total Chunks</div>
+                </div>
+                <div className="glass rounded-xl p-4 text-center">
+                  <div className="text-3xl font-bold text-text">{analytics.total_queries}</div>
+                  <div className="text-xs text-muted mt-1">Queries Logged</div>
+                </div>
+                <div className="glass rounded-xl p-4 text-center">
+                  <div className={`text-3xl font-bold ${
+                    (analytics.avg_confidence || 0) >= 0.7 ? 'text-green-400' :
+                    (analytics.avg_confidence || 0) >= 0.4 ? 'text-yellow-400' : 'text-red-400'
+                  }`}>
+                    {analytics.avg_confidence ? `${(analytics.avg_confidence * 100).toFixed(0)}%` : 'N/A'}
+                  </div>
+                  <div className="text-xs text-muted mt-1">Avg Confidence</div>
+                </div>
+              </div>
+
+              {/* Secondary Stats */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="glass rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-emerald-400">{analytics.auto_generated_articles}</div>
+                  <div className="text-xs text-muted mt-1">Auto-Generated Articles</div>
+                </div>
+                <div className="glass rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-red-400">{analytics.low_confidence_queries}</div>
+                  <div className="text-xs text-muted mt-1">Low Confidence Queries</div>
+                </div>
+              </div>
+
+              {/* Query Type Breakdown */}
+              {analytics.query_type_breakdown && Object.keys(analytics.query_type_breakdown).length > 0 && (
+                <div className="glass rounded-xl p-6">
+                  <h3 className="text-sm font-semibold text-text mb-4 uppercase tracking-wide">Query Types</h3>
+                  <div className="space-y-3">
+                    {Object.entries(analytics.query_type_breakdown).map(([type, count]) => {
+                      const total = analytics.total_queries || 1;
+                      const pct = ((count / total) * 100).toFixed(0);
+                      return (
+                        <div key={type}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm text-text-secondary">{type.replace('_', ' ')}</span>
+                            <span className="text-sm font-medium text-text">{count} ({pct}%)</span>
+                          </div>
+                          <div className="w-full bg-panel rounded-full h-2">
+                            <div className="bg-accent rounded-full h-2 transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Top Documents */}
+              {analytics.top_documents?.length > 0 && (
+                <div className="glass rounded-xl p-6">
+                  <h3 className="text-sm font-semibold text-text mb-4 uppercase tracking-wide">Most Referenced Documents</h3>
+                  <div className="space-y-3">
+                    {analytics.top_documents.map((doc, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 bg-panel rounded-lg border border-border">
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium text-text truncate block">{doc.title}</span>
+                          <span className="text-xs text-muted">Avg similarity: {(doc.avg_similarity * 100).toFixed(0)}%</span>
+                        </div>
+                        <div className="text-right ml-4">
+                          <div className="text-lg font-bold text-accent">{doc.hit_count}</div>
+                          <div className="text-xs text-muted">hits</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Stale Documents */}
+              {analytics.stale_documents?.length > 0 && (
+                <div className="glass rounded-xl p-6">
+                  <h3 className="text-sm font-semibold text-text mb-2 uppercase tracking-wide">Unreferenced Documents</h3>
+                  <p className="text-xs text-muted mb-4">These documents haven't been matched in any recent queries. Consider updating or removing them.</p>
+                  <div className="space-y-2">
+                    {analytics.stale_documents.map((doc, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 bg-panel rounded-lg border border-border">
+                        <div>
+                          <span className="text-sm text-text-secondary">{doc.title}</span>
+                          <span className="text-xs text-muted ml-2">Added {new Date(doc.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <span className="text-xs bg-yellow-500/15 text-yellow-400 px-2 py-0.5 rounded-full border border-yellow-500/30">stale</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Refresh */}
+              <button
+                onClick={loadAnalytics}
+                disabled={analyticsLoading}
+                className="px-4 py-2 bg-panel border border-border text-text-secondary rounded-lg hover:bg-panel-hover transition-all text-sm disabled:opacity-50"
+              >
+                Refresh Analytics
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
