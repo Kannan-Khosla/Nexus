@@ -181,6 +181,4 @@ Run the test suite:
 pytest tests/
 ```
 
-## License
 
-[Your License Here]
